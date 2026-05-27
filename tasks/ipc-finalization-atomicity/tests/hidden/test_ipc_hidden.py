@@ -43,12 +43,16 @@ def test_repeated_finalization_controlled_behavior(tmp_path: Path) -> None:
     seed(conn)
 
     finalize_ipc_period(conn, '2025-01-01', '2025-01-31')
-    with pytest.raises((FinalizationError, ValidationError, RuntimeError, ValueError, Exception)) as err:
-        finalize_ipc_period(conn, '2025-01-01', '2025-01-31')
+    line_item_count_before_repeat = conn.execute('SELECT COUNT(*) AS c FROM ipc_line_items').fetchone()['c']
 
-    # should not create second period
+    try:
+        finalize_ipc_period(conn, '2025-01-01', '2025-01-31')
+    except (FinalizationError, ValidationError, RuntimeError, ValueError):
+        pass
+
+    # should not create second period and should not duplicate line items
     assert conn.execute('SELECT COUNT(*) AS c FROM ipc_periods').fetchone()['c'] == 1
-    assert 'controlled' or err.value
+    assert conn.execute('SELECT COUNT(*) AS c FROM ipc_line_items').fetchone()['c'] == line_item_count_before_repeat
 
 
 def test_out_of_range_logs_untouched(tmp_path: Path) -> None:
